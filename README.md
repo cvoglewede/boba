@@ -5,7 +5,7 @@ B.O.B.A.
 
 Fantasy Baseball Projections using Bayesian Optimized Machine Learning
 
-![Boba](https://github.com/cvoglewede/boba/blob/master/reports/figures/boba_logos/logo_1.PNG)
+![Boba](https://github.com/cvoglewede/boba/blob/master/reports/figures/boba_logos/champion.PNG)
 
 
 Project Organization

@@ -25,8 +25,8 @@ class Boba_ETL():
         
         print("Success")
  
-    def gather_FG_hitters(self):
-        path = 'data/hitters/raw/fangraphs/season/'
+    def gather_seasons(self, position_group, source):
+        path = 'data/'+position_group+'/raw/'+source+'/season/'
         files = []
         for r, d, f in os.walk(path):
             for file in f:
@@ -40,5 +40,7 @@ class Boba_ETL():
             headings = df.columns
             data = data.append(df)
         data.columns = headings
-        data.to_csv('data/hitters/interim/fangraphs/master_fg.csv')
+        interim_path = 'data/'+position_group+'/interim/'+source+'/master.csv'
+        data.to_csv(interim_path)
+        upload_file(file_name = interim_path)
         return data
