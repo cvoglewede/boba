@@ -1,7 +1,10 @@
-BOBA
+B.O.B.A.
 ==============================
 
-Fantasy Baseball Projcections using Bayesian Optimized Boosting Algorithms
+### Bayesian Optimized Baseball Algorithm
+
+
+Fantasy Baseball Projections using Bayesian Optimized Machine Learning
 
 Project Organization
 ------------
