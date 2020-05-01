@@ -3,8 +3,10 @@ B.O.B.A.
 
 ### Bayesian Optimized Baseball Algorithm
 
-
 Fantasy Baseball Projections using Bayesian Optimized Machine Learning
+
+![Boba](reports/figures/boba_logos/logo_1.png)
+
 
 Project Organization
 ------------
