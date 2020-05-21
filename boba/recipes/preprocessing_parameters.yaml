@@ -1,0 +1,23 @@
+parameters:
+  hitters:
+    pt_min:
+      200
+    pt_keep_thres:
+      400
+    pt_drop:
+      200
+  SP:
+    pt_min:
+      100
+    pt_keep_thres:
+      120
+    pt_drop:
+      60
+  RP:
+    pt_min:
+      30
+    pt_keep_thres:
+      40
+    pt_drop:
+      30
+

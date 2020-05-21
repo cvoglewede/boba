@@ -1,0 +1,547 @@
+- test:
+  - playerID
+  - Season
+  - Name
+  - Team
+  - Age
+  - W
+  - L
+  - ERA
+  - G
+  - GS
+  - CG
+  - ShO
+  - SV
+  - BS
+  - IP
+  - TBF
+  - H
+  - R
+  - ER
+  - HR
+  - BB
+  - IBB
+  - HBP
+  - WP
+  - BK
+  - SO
+  - GB
+  - FB
+  - LD
+  - IFFB
+  - Balls
+  - Strikes
+  - Pitches
+  - RS
+  - IFH
+  - BU
+  - BUH
+  - K/9
+  - BB/9
+  - K/BB
+  - H/9
+  - HR/9
+  - AVG
+  - WHIP
+  - BABIP
+  - LOB%
+  - FIP
+  - GB/FB
+  - LD%
+  - GB%
+  - FB%
+  - IFFB%
+  - HR/FB
+  - IFH%
+  - BUH%
+  - Starting
+  - Start-IP
+  - Relieving
+  - Relief-IP
+  - RAR
+  - WAR
+  - tERA
+  - xFIP
+  - WPA
+  - -WPA
+  - +WPA
+  - RE24
+  - REW
+  - pLI
+  - inLI
+  - gmLI
+  - exLI
+  - Pulls
+  - WPA/LI
+  - Clutch
+  - FB% (Pitch)
+  - FBv
+  - SL%
+  - SLv
+  - CT%
+  - CTv
+  - CB%
+  - CBv
+  - CH%
+  - CHv
+  - SF%
+  - SFv
+  - KN%
+  - KNv
+  - XX%
+  - PO%
+  - wFB
+  - wSL
+  - wCT
+  - wCB
+  - wCH
+  - wSF
+  - wKN
+  - wFB/C
+  - wSL/C
+  - wCT/C
+  - wCB/C
+  - wCH/C
+  - wSF/C
+  - wKN/C
+  - O-Swing%
+  - Z-Swing%
+  - Swing%
+  - O-Contact%
+  - Z-Contact%
+  - Contact%
+  - Zone%
+  - F-Strike%
+  - SwStr%
+  - HLD
+  - SD
+  - MD
+  - ERA-
+  - FIP-
+  - xFIP-
+  - K%
+  - BB%
+  - SIERA
+  - RS/9
+  - E-F
+  - FA% (pfx)
+  - FT% (pfx)
+  - FC% (pfx)
+  - FS% (pfx)
+  - FO% (pfx)
+  - SI% (pfx)
+  - SL% (pfx)
+  - CU% (pfx)
+  - KC% (pfx)
+  - EP% (pfx)
+  - CH% (pfx)
+  - SC% (pfx)
+  - KN% (pfx)
+  - UN% (pfx)
+  - vFA (pfx)
+  - vFT (pfx)
+  - vFC (pfx)
+  - vFS (pfx)
+  - vFO (pfx)
+  - vSI (pfx)
+  - vSL (pfx)
+  - vCU (pfx)
+  - vKC (pfx)
+  - vEP (pfx)
+  - vCH (pfx)
+  - vSC (pfx)
+  - vKN (pfx)
+  - FA-X (pfx)
+  - FT-X (pfx)
+  - FC-X (pfx)
+  - FS-X (pfx)
+  - FO-X (pfx)
+  - SI-X (pfx)
+  - SL-X (pfx)
+  - CU-X (pfx)
+  - KC-X (pfx)
+  - EP-X (pfx)
+  - CH-X (pfx)
+  - SC-X (pfx)
+  - KN-X (pfx)
+  - FA-Z (pfx)
+  - FT-Z (pfx)
+  - FC-Z (pfx)
+  - FS-Z (pfx)
+  - FO-Z (pfx)
+  - SI-Z (pfx)
+  - SL-Z (pfx)
+  - CU-Z (pfx)
+  - KC-Z (pfx)
+  - EP-Z (pfx)
+  - CH-Z (pfx)
+  - SC-Z (pfx)
+  - KN-Z (pfx)
+  - wFA (pfx)
+  - wFT (pfx)
+  - wFC (pfx)
+  - wFS (pfx)
+  - wFO (pfx)
+  - wSI (pfx)
+  - wSL (pfx)
+  - wCU (pfx)
+  - wKC (pfx)
+  - wEP (pfx)
+  - wCH (pfx)
+  - wSC (pfx)
+  - wKN (pfx)
+  - wFA/C (pfx)
+  - wFT/C (pfx)
+  - wFC/C (pfx)
+  - wFS/C (pfx)
+  - wFO/C (pfx)
+  - wSI/C (pfx)
+  - wSL/C (pfx)
+  - wCU/C (pfx)
+  - wKC/C (pfx)
+  - wEP/C (pfx)
+  - wCH/C (pfx)
+  - wSC/C (pfx)
+  - wKN/C (pfx)
+  - O-Swing% (pfx)
+  - Z-Swing% (pfx)
+  - Swing% (pfx)
+  - O-Contact% (pfx)
+  - Z-Contact% (pfx)
+  - Contact% (pfx)
+  - Zone% (pfx)
+  - Pace
+  - RA9-WAR
+  - BIP-Wins
+  - LOB-Wins
+  - FDP-Wins
+  - Age Rng
+  - K-BB%
+  - Pull%
+  - Cent%
+  - Oppo%
+  - Soft%
+  - Med%
+  - Hard%
+  - kwERA
+  - TTO%
+  - CH% (pi)
+  - CS% (pi)
+  - CU% (pi)
+  - FA% (pi)
+  - FC% (pi)
+  - FS% (pi)
+  - KN% (pi)
+  - SB% (pi)
+  - SI% (pi)
+  - SL% (pi)
+  - XX% (pi)
+  - vCH (pi)
+  - vCS (pi)
+  - vCU (pi)
+  - vFA (pi)
+  - vFC (pi)
+  - vFS (pi)
+  - vKN (pi)
+  - vSB (pi)
+  - vSI (pi)
+  - vSL (pi)
+  - vXX (pi)
+  - CH-X (pi)
+  - CS-X (pi)
+  - CU-X (pi)
+  - FA-X (pi)
+  - FC-X (pi)
+  - FS-X (pi)
+  - KN-X (pi)
+  - SB-X (pi)
+  - SI-X (pi)
+  - SL-X (pi)
+  - XX-X (pi)
+  - CH-Z (pi)
+  - CS-Z (pi)
+  - CU-Z (pi)
+  - FA-Z (pi)
+  - FC-Z (pi)
+  - FS-Z (pi)
+  - KN-Z (pi)
+  - SB-Z (pi)
+  - SI-Z (pi)
+  - SL-Z (pi)
+  - XX-Z (pi)
+  - wCH (pi)
+  - wCS (pi)
+  - wCU (pi)
+  - wFA (pi)
+  - wFC (pi)
+  - wFS (pi)
+  - wKN (pi)
+  - wSB (pi)
+  - wSI (pi)
+  - wSL (pi)
+  - wXX (pi)
+  - wCH/C (pi)
+  - wCS/C (pi)
+  - wCU/C (pi)
+  - wFA/C (pi)
+  - wFC/C (pi)
+  - wFS/C (pi)
+  - wKN/C (pi)
+  - wSB/C (pi)
+  - wSI/C (pi)
+  - wSL/C (pi)
+  - wXX/C (pi)
+  - O-Swing% (pi)
+  - Z-Swing% (pi)
+  - Swing% (pi)
+  - O-Contact% (pi)
+  - Z-Contact% (pi)
+  - Contact% (pi)
+  - Zone% (pi)
+  - Pace (pi)
+  - FRM
+  - K/9+
+  - BB/9+
+  - K/BB+
+  - H/9+
+  - HR/9+
+  - AVG+
+  - WHIP+
+  - BABIP+
+  - LOB%+
+  - K%+
+  - BB%+
+  - LD%+
+  - GB%+
+  - FB%+
+  - HR/FB%+
+  - Pull%+
+  - Cent%+
+  - Oppo%+
+  - Soft%+
+  - Med%+
+  - Hard%+
+  - position
+  - year
+  - player_id
+  - player_name
+  - pitch_count
+  - pitch_count.1
+  - in_zone_percent
+  - out_zone_percent
+  - edge_percent
+  - z_swing_percent
+  - oz_swing_percent
+  - iz_contact_percent
+  - oz_contact_percent
+  - whiff_percent
+  - f_strike_percent
+  - swing_percent
+  - meatball_swing_percent
+  - meatball_percent
+  - z_swing_miss_percent
+  - oz_swing_miss_percent
+  - popups_percent
+  - flyballs_percent
+  - linedrives_percent
+  - groundballs_percent
+  - pull_percent
+  - straightaway_percent
+  - opposite_percent
+  - poorlyweak_percent
+  - poorlytopped_percent
+  - poorlyunder_percent
+  - flareburner_percent
+  - solidcontact_percent
+  - hr_flyballs_percent
+  - in_zone_swing
+  - out_zone_swing
+  - in_zone_swing_miss
+  - out_zone_swing_miss
+  - pitch_count_fastball
+  - pitch_count_offspeed
+  - pitch_count_breaking
+  - k_percent
+  - bb_percent
+  - batted_ball
+  - barrel
+  - barrel_batted_rate
+  - launch_angle_avg
+  - exit_velocity_avg
+  - sweet_spot_percent
+  - hard_hit_percent
+  - ba
+  - xba
+  - bacon
+  - xbacon
+  - babip
+  - obp
+  - slg
+  - xobp
+  - xslg
+  - iso
+  - xiso
+  - woba
+  - xwoba
+  - wobacon
+  - xwobacon
+  - xbadiff
+  - xslgdiff
+  - wobadif
+  - pitch_hand
+  - n_toofew
+  - n
+  - n_ff_formatted
+  - n_ff
+  - ff_avg_speed
+  - ff_avg_spin
+  - ff_avg_break_x
+  - ff_avg_break_z
+  - ff_avg_break
+  - ff_range_speed
+  - ff_range_break_x
+  - ff_range_break_z
+  - ff_range_break
+  - ff_calc_axis1
+  - ff_calc_axis2
+  - n_sl_formatted
+  - n_sl
+  - sl_avg_speed
+  - sl_avg_spin
+  - sl_avg_break_x
+  - sl_avg_break_z
+  - sl_avg_break
+  - sl_range_speed
+  - sl_range_break_x
+  - sl_range_break_z
+  - sl_range_break
+  - sl_calc_axis1
+  - sl_calc_axis2
+  - n_ch_formatted
+  - n_ch
+  - ch_avg_speed
+  - ch_avg_spin
+  - ch_avg_break_x
+  - ch_avg_break_z
+  - ch_avg_break
+  - ch_range_speed
+  - ch_range_break_x
+  - ch_range_break_z
+  - ch_range_break
+  - ch_calc_axis1
+  - ch_calc_axis2
+  - n_cukc_formatted
+  - n_cu
+  - cu_avg_speed
+  - cu_avg_spin
+  - cu_avg_break_x
+  - cu_avg_break_z
+  - cu_avg_break
+  - cu_range_speed
+  - cu_range_break_x
+  - cu_range_break_z
+  - cu_range_break
+  - cu_calc_axis1
+  - cu_calc_axis2
+  - n_sift_formatted
+  - n_si
+  - si_avg_speed
+  - si_avg_spin
+  - si_avg_break_x
+  - si_avg_break_z
+  - si_avg_break
+  - si_range_speed
+  - si_range_break_x
+  - si_range_break_z
+  - si_range_break
+  - si_calc_axis1
+  - si_calc_axis2
+  - n_fc_formatted
+  - n_fc
+  - fc_avg_speed
+  - fc_avg_spin
+  - fc_avg_break_x
+  - fc_avg_break_z
+  - fc_avg_break
+  - fc_range_speed
+  - fc_range_break_x
+  - fc_range_break_z
+  - fc_range_break
+  - fc_calc_axis1
+  - fc_calc_axis2
+  - n_fs_formatted
+  - n_fs
+  - fs_avg_speed
+  - fs_avg_spin
+  - fs_avg_break_x
+  - fs_avg_break_z
+  - fs_avg_break
+  - fs_range_speed
+  - fs_range_break_x
+  - fs_range_break_z
+  - fs_range_break
+  - fs_calc_axis1
+  - fs_calc_axis2
+  - n_kn_formatted
+  - n_kn
+  - kn_avg_speed
+  - kn_avg_spin
+  - kn_avg_break_x
+  - kn_avg_break_z
+  - kn_avg_break
+  - kn_range_speed
+  - kn_range_break_x
+  - kn_range_break_z
+  - kn_range_break
+  - kn_calc_axis1
+  - kn_calc_axis2
+  - n_fastball_formatted
+  - n_fastball
+  - fastball_avg_speed
+  - fastball_avg_spin
+  - fastball_avg_break_x
+  - fastball_avg_break_z
+  - fastball_avg_break
+  - fastball_range_speed
+  - fastball_range_break_x
+  - fastball_range_break_z
+  - fastball_range_break
+  - fastball_calc_axis1
+  - fastball_calc_axis2
+  - n_breaking_formatted
+  - n_breaking
+  - breaking_avg_speed
+  - breaking_avg_spin
+  - breaking_avg_break_x
+  - breaking_avg_break_z
+  - breaking_avg_break
+  - breaking_range_speed
+  - breaking_range_break_x
+  - breaking_range_break_z
+  - breaking_range_break
+  - breaking_calc_axis1
+  - breaking_calc_axis2
+  - n_offspeed_formatted
+  - n_offspeed
+  - offspeed_avg_speed
+  - offspeed_avg_spin
+  - offspeed_avg_break_x
+  - offspeed_avg_break_z
+  - offspeed_avg_break
+  - offspeed_range_speed
+  - offspeed_range_break_x
+  - offspeed_range_break_z
+  - offspeed_range_break
+  - offspeed_calc_axis1
+  - offspeed_calc_axis2
+  - percent_rank_fastball_velo
+  - percent_rank_fastball_spin
+  - percent_rank_cu_spin
+  - p_ab
+  - p_k_percent
+  - p_bb_percent
+  - p_formatted_ip
+  - batting_avg
+  - slg_percent
+  - on_base_percent
+  - on_base_plus_slg

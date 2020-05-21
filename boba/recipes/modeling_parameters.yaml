@@ -1,0 +1,11 @@
+preprocessing:
+  knn: 
+    5
+
+hyperparameter_optimization:
+  max_evals: 
+    30
+  
+
+# model:
+

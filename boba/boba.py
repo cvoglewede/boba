@@ -3,34 +3,181 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import boto3
+from tqdm import tqdm
+import yaml
 
-from ._01_WebScraping import Boba_WebScraping
-from ._02_ETL import Boba_ETL
+from ._01_ETL import Boba_ETL as etl
+from ._02_Preprocessing import Boba_Preprocessing as pp
+from ._03_Modeling import Boba_Modeling as m
+from ._04_Diagnostics import Boba_Diagnostics as d
 
-class BobaProjections(Boba_WebScraping, Boba_ETL):
+class BobaProjections(etl,pp,m,d):
 
-    def __init__(self, year):
+    def __init__(self, year, position_group):
         self.s3_client = boto3.client('s3')
         self.bucket = "boba-voglewede"
         self.year = year
+        self.information_cols = ['Season','Name','playerID','position','Team','Age']
+        self.position_group = position_group
+        if self.position_group=='hitters': 
+            self.per_metric = 'PA' 
+            self.counting_stats = ['HR','R','RBI','WAR','SB','CS']
+            self.rate_stats = ['AVG','OBP','SLG','BABIP','BB%','K%','wOBA']
+            self.model_targets = self.rate_stats + [c+'_per_'+self.per_metric for c in self.counting_stats]  
+            self.pt_metric = 'PA'      
+        elif self.position_group=='SP':
+            self.per_metric = 'GS' 
+            self.counting_stats = ['ShO','CG','W'] 
+            self.rate_stats = ['ERA','BB/9','K/9','obp','slg']
+            self.model_targets = self.rate_stats + [c+'_per_'+self.per_metric for c in self.counting_stats]
+            self.pt_metric = 'IP'
+        elif self.position_group=='RP':
+            self.per_metric = 'G' 
+            self.counting_stats = ['SV','HLD']
+            self.rate_stats = ['ERA','BB/9','K/9','obp','slg']
+            self.model_targets = self.rate_stats + [c+'_per_'+self.per_metric for c in self.counting_stats]
+            self.pt_metric = 'IP'
+        else:
+            pass
 
     def __repr__(self):
-        return "I am a Baseball Projection System!"
+        return "This is the way"
 
 
-    def gather_data(self, source, position_group, year):
-        if souce == 'fangraphs_season':
-            if position_group == 'hitters':
-                print("gather data for FG seasonal hitting data")
-                scrape_FG_hitters_season(year)
-            elif position_group == 'pitchers':    
-                print("gather data for FG seasonal pitching data")
-            else: 
-                pass
-        elif souce == 'statcast_season':
-            if position_group == 'hitters':
-                print("gather data for statcast seasonal hitting data")
-            elif position_group == 'pitchers':    
-                print("gather data for statcast seasonal pitching data")
-            else: 
-                pass
+    def scrape_raw_season_data(self, source, start_year,end_year, writeS3=False):
+        seasons = list(np.arange(start_year,end_year+1))
+        statcast_seasons = list(np.arange(2015,end_year+1))
+        data_group = 'hitters' if self.position_group == 'hitters' else 'pitchers'
+        if data_group == 'hitters':
+            print("gather data for {} through {} seasonal hitting data".format(start_year,end_year))
+            for i in tqdm(seasons):
+                etl.FG_hitters_season(self,season=i,writeS3=writeS3)
+            print("Fangraphs scrape completed")
+            for i in tqdm(statcast_seasons):
+                etl.statcast_hitters_season(self,season=i,writeS3=writeS3)
+            print("Statcast scrape completed")
+        elif data_group == 'pitchers':    
+            print("gather data for {} through {} seasonal pitching data".format(start_year,end_year))
+            for i in tqdm(seasons):
+                etl.FG_pitchers_season(self,season=i,writeS3=writeS3)
+            print("Fangraphs scrape completed")
+            for i in tqdm(statcast_seasons):
+                etl.statcast_pitchers_season(self,season=i,writeS3=writeS3)
+            print("Statcast scrape completed")
+        else: 
+            pass
+
+    def prepare_source_masters(self, writeS3 = False):
+        data_group = 'hitters' if self.position_group == 'hitters' else 'pitchers'
+        if data_group == 'hitters':
+            etl.gather_source_masters(self,position_group=self.position_group, source = 'fangraphs', writeS3 = False)
+            etl.gather_source_masters(self,position_group=self.position_group, source = 'statcast', writeS3 = False)
+        elif data_group == 'pitchers':  
+            etl.gather_source_masters(self,position_group=self.position_group, source = 'fangraphs', writeS3 = False)
+            etl.gather_source_masters(self,position_group=self.position_group, source = 'statcast', writeS3 = False)
+        else:
+            pass  
+    
+
+    def create_master_data(self,start_year=2016):
+        with open(r'boba/recipes/preprocessing_parameters.yaml') as file:
+            yaml_data = yaml.load(file, Loader=yaml.FullLoader)
+
+        self.pt_min = yaml_data['parameters'][self.position_group]['pt_min']
+        self.pt_keep_thres = yaml_data['parameters'][self.position_group]['pt_keep_thres']
+        self.pt_drop = yaml_data['parameters'][self.position_group]['pt_drop']
+
+        fg_df,statcast_df,id_map,fantrax = etl.load_raw_dataframes(self)
+        master_df = pp.join_tables(self,fg_df,statcast_df,id_map,fantrax)
+        master_df = pp.preliminary_col_reduction(self,master_df)
+        master_df = pp.feature_engineering(self,master_df)
+        master_df = pp.drop_out_of_position(self,master_df = master_df)
+        master_df = pp.limit_years(self,start_year=start_year,master_df=master_df)
+        master_df = pp.make_targets(self,master_df=master_df)
+        master_df = pp.organize_training_columns(self,master_df=master_df)
+        master_df = master_df.reset_index(drop = True)
+        master_df.to_csv('data/processed/'+self.position_group+'/master_df.csv',index=True)
+        modeling_df = pp.remove_injured(self,master_df=master_df)
+        modeling_df.to_csv('data/processed/'+self.position_group+'/modeling_df.csv',index=True)
+        pp.run_corr_analysis(self,modeling_df)
+
+        return master_df, modeling_df
+
+
+    def modeling_pipeline(self, target, seed=88,test_size=.25):
+
+        modeling_df =  pd.read_csv('data/processed/'+self.position_group+'/modeling_df.csv',index_col=0)   
+
+        self.seed = seed
+        with open(r'boba/recipes/modeling_parameters.yaml') as file:
+            yaml_data = yaml.load(file, Loader=yaml.FullLoader)
+        self.knn = yaml_data['preprocessing']['knn']
+
+        model_df = m.isolate_relevant_columns(self,modeling_df = modeling_df,target = target)
+
+        self.X_train, self.X_test, self.y_train, self.y_test = m.evaluation_split(self,model_df=model_df,target=target)
+        self.X_train_prod, self.X_test_prod, self.y_train_prod, self.y_test_prod = m.production_split(self,model_df=model_df,target=target,test_size=test_size)
+        self.X_train, self.X_test = m.preprocessing_pipeline(self, X_train = self.X_train, X_test = self.X_test, target = target, prod=False)
+        self.model_eval = m.build_model(self,X_train=self.X_train, X_test=self.X_test,y_train=self.y_train, y_test=self.y_test,target=target,prod=False)
+        d.run_model_diagnostics(self, model=self.model_eval, X_train=self.X_train, X_test=self.X_test, y_train=self.y_train, y_test=self.y_test, target=target)
+        self.X_train_prod, self.X_test_prod = m.preprocessing_pipeline(self, X_train = self.X_train_prod, X_test = self.X_test_prod, target = target, prod=True)
+        self.model_prod = m.build_model(self,X_train=self.X_train, X_test=self.X_test,y_train=self.y_train, y_test=self.y_test,target=target,prod=True)
+        d.run_model_diagnostics(self, model=self.model_prod, X_train=self.X_train_prod, X_test=self.X_test_prod, y_train=self.y_train_prod, y_test=self.y_test_prod, target=target)
+
+
+    def create_league(self):
+        pass
+
+    def set_model_weights(self):
+        pass
+
+
+
+    # def load_training_data():
+    #     return data
+
+    # def load_modeling_data():
+    #     return data
+
+    # def load_scoring_data():
+    #     return data
+    
+    # def load_projections():
+    #     return data
+
+    # def build_projections():
+    #     return df
+
+    # def perform_methods():
+    #     method_A()
+    #     method_B()
+    #     return df
+
+    # def compare_methods():
+    #     return df, plots
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
