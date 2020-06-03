@@ -22,9 +22,24 @@ class Boba_Utils():
         except ClientError as e:
             logging.error(e)
             return False
-        
         print("Success")
  
+    def clear_files(self):
+        path = 'boba/data/scoring/evaluation_hitters_2019.csv'
+        if os.path.exists(path):
+            os.remove(path)
+
+        path = 'boba/data/scoring/evaluation_RP_2019.csv'
+        if os.path.exists(path):
+            os.remove(path)
+        
+        path = 'boba/models/grid_search_result.csv'
+        if os.path.exists(path):
+            os.remove(path)
+
+        path = 'boba/models/model_results.csv'
+        if os.path.exists(path):
+            os.remove(path)
 
     def agg_position_h(row):
         if 'C' in row['position'] :
@@ -37,10 +52,13 @@ class Boba_Utils():
             return 'OF' 
         elif '1B' in row['position']:
             return '1B' 
+        elif '3B' in row['position']:
+            return '3B' 
         elif 'RP' in row['position']:
             return 'P' 
         elif 'SP' in row['position']:
             return 'P' 
+            
         else:
             return row['position']
 

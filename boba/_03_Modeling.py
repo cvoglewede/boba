@@ -27,9 +27,10 @@ import pickle
 import os
 
 from .utils import Boba_Utils as u
+from ._04_ModelDiagnostics import Boba_Model_Diagnostics as d
+from ._05_SystemDiagnostics import Boba_Sys_Diagnostics as sd
 
-
-class Boba_Modeling(u):
+class Boba_Modeling(u,d,sd):
 
     def __init__(self):
         pass
@@ -39,32 +40,60 @@ class Boba_Modeling(u):
             yaml_data = yaml.load(file, Loader=yaml.FullLoader)
         features = [col for col in list(modeling_df.columns) if col in yaml_data[target]]
         if self.position_group == 'hitters':
-            column_list = ['Season','position','Team']+ [target] + features
-        else:
-            column_list = ['Season','position','Team','pitch_hand']+ [target] + features
-        model_df = modeling_df[column_list]
+            column_list = ['Season','Team']+ [target] + features
+            model_df = modeling_df.copy()
+            model_df['Team_2yrago'] = model_df['Team_2yrago'].fillna('- - -')
+            model_df['Team_1yrago'] = model_df['Team_1yrago'].fillna('- - -')
+            model_df['Team_3yrago'] = model_df['Team_3yrago'].fillna('- - -')
+            model_df = model_df[column_list]
+        elif self.position_group == 'SP':
+            column_list = ['Season','Team','pitch_hand']+ [target] + features
+            model_df = modeling_df.copy()
+            model_df['Team_2yrago'] = model_df['Team_2yrago'].fillna('- - -')
+            model_df['Team_1yrago'] = model_df['Team_1yrago'].fillna('- - -')
+            model_df['Team_3yrago'] = model_df['Team_3yrago'].fillna('- - -')
+            model_df['ShO_3yrago'] = model_df['ShO_3yrago'].fillna(0)
+            model_df['pitch_hand'] = model_df['pitch_hand'].fillna('R')
+            model_df = model_df[column_list]
+        elif self.position_group == 'RP':
+            column_list = ['Season','Team','pitch_hand']+ [target] + features
+            model_df = modeling_df.copy()
+            model_df['Team_2yrago'] = model_df['Team_2yrago'].fillna('- - -')
+            model_df['Team_1yrago'] = model_df['Team_1yrago'].fillna('- - -')
+            model_df['ShO_3yrago'] = model_df['ShO_3yrago'].fillna(0)
+            model_df['pitch_hand'] = model_df['pitch_hand'].fillna('R')
+            model_df = model_df[column_list]
         return model_df
 
-    def evaluation_split(self,model_df,target):
-        print("Split model Dataframe into pre-{} data and {} data".format((self.year-1),(self.year-1)))
+    def evaluation_split(self,model_df,target,test_size):
+        print("Split model Dataframe into pre-{} data".format((self.year-1)))
         X = model_df.drop([target],axis=1)
         y = model_df[[target]]
         year_split = (model_df.Season==(self.year-1))
-        X_train = X[-year_split]
-        X_test = X[year_split]
-        y_train = y[-year_split]
-        y_test = y[year_split]
+        test_split = (model_df.Season==(self.year-2))
+        X = X[-year_split]
+        y = y[-year_split]
+        # X_train = X[-test_split]
+        # X_test = X[test_split]
+        # y_train = y[-test_split]
+        # y_test = y[test_split]
+        X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=test_size, random_state=self.seed)
         return X_train, X_test, y_train, y_test
 
     def production_split(self,model_df, target, test_size):
         print("Split data into true train/test")
         X = model_df.drop([target],axis=1)
         y = model_df[[target]]
+        test_split = (model_df.Season==(self.year-1))
+        # X_train = X[-test_split]
+        # X_test = X[test_split]
+        # y_train = y[-test_split]
+        # y_test = y[test_split]
         X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=test_size, random_state=self.seed)
         return X_train, X_test, y_train, y_test
 
     def preprocessing_pipeline(self, X_train, X_test, target, prod):
-        print("Fit Preprocessing Steps to X_train and transform X_test. If prod is true, save off columns and pipeline")
+        print("Fit Preprocessing Steps to X_train and transform X_test")
         cat_cols = list(set(X_train.nunique()[X_train.nunique()<3].keys().tolist() 
                     + X_train.select_dtypes(include='object').columns.tolist()))
         categorical_features = [x for x in cat_cols]
@@ -80,6 +109,9 @@ class Boba_Modeling(u):
                 ('num', numeric_transformer, numeric_features),
                 ('cat', categorical_transformer, categorical_features)])
         preprocessing_pipeline = Pipeline(steps=[('preprocessor', preprocessor)])
+        
+        # temp_imputer = SimpleImputer(strategy='constant', fill_value='missing')
+        # temp_ohe = temp_imputer.fit_transform(X_train[categorical_features])
         ohe = OneHotEncoder(handle_unknown='ignore',sparse=False)
         ohe.fit(X_train[categorical_features])
         model_features = numeric_features + list(ohe.get_feature_names())
@@ -92,29 +124,39 @@ class Boba_Modeling(u):
         if prod:
             if os.path.exists('data/modeling/'+self.position_group+'/'+target):
                 model_features_dict = {target:model_features}
-                with open(r'data/modeling/'+self.position_group+'/'+target+'/model_features.yaml', 'w') as file:
+                with open(r'data/modeling/'+self.position_group+'/'+target+'/model_features_prod.yaml', 'w') as file:
                     yaml.dump(model_features_dict, file)
-                filename = 'data/modeling/'+self.position_group+'/'+target+'/preprocessing_pipeline.sav'
+                filename = 'data/modeling/'+self.position_group+'/'+target+'/preprocessing_pipeline_prod.sav'
                 pickle.dump(preprocessing_pipeline, open(filename, 'wb'))
             else:
                 os.mkdir('data/modeling/'+self.position_group+'/'+target)
                 model_features_dict = {target:model_features}
-                with open(r'data/modeling/'+self.position_group+'/'+target+'/model_features.yaml', 'w') as file:
+                with open(r'data/modeling/'+self.position_group+'/'+target+'/model_features_prod.yaml', 'w') as file:
                     yaml.dump(model_features_dict, file)
-                filename = 'data/modeling/'+self.position_group+'/'+target+'/preprocessing_pipeline.sav'
+                filename = 'data/modeling/'+self.position_group+'/'+target+'/preprocessing_pipeline_prod.sav'
                 pickle.dump(preprocessing_pipeline, open(filename, 'wb'))            
         else:
-            pass
+            if os.path.exists('data/modeling/'+self.position_group+'/'+target):
+                model_features_dict = {target:model_features}
+                with open(r'data/modeling/'+self.position_group+'/'+target+'/model_features_eval.yaml', 'w') as file:
+                    yaml.dump(model_features_dict, file)
+                filename = 'data/modeling/'+self.position_group+'/'+target+'/preprocessing_pipeline_eval.sav'
+                pickle.dump(preprocessing_pipeline, open(filename, 'wb'))
+            else:
+                os.mkdir('data/modeling/'+self.position_group+'/'+target)
+                model_features_dict = {target:model_features}
+                with open(r'data/modeling/'+self.position_group+'/'+target+'/model_features_eval.yaml', 'w') as file:
+                    yaml.dump(model_features_dict, file)
+                filename = 'data/modeling/'+self.position_group+'/'+target+'/preprocessing_pipeline_eval.sav'
+                pickle.dump(preprocessing_pipeline, open(filename, 'wb')) 
         return X_train_processed, X_test_processed
 
 
 
 
-    def build_model(self,X_train, X_test,y_train, y_test,target, prod):
+    def build_model(self,X_train, X_test,y_train, y_test,target, prod, max_evals,verbose):
+        verbose_setting = 1 if verbose==True else 0
         print("Building model for {}".format(target))
-
-        with open(r'boba/recipes/modeling_parameters.yaml') as file:
-            yaml_data = yaml.load(file, Loader=yaml.FullLoader)
 
         xgb_reg_params = {
             'learning_rate':    hp.uniform('learning_rate', 0, .8),
@@ -134,8 +176,7 @@ class Boba_Modeling(u):
         xgb_params['reg_params'] = xgb_reg_params
         xgb_params['fit_params'] = xgb_fit_params
         xgb_params['loss_func' ] = lambda y, pred: np.sqrt(mean_squared_error(y, pred))
-
-        max_evals = yaml_data['hyperparameter_optimization']['max_evals']
+        max_evals = max_evals
 
         trials = Trials()
         opt_params ,trials = self.Bayes_param_optimization(X_train, X_test, y_train, y_test,  algo=tpe.suggest, trials=trials,space=xgb_params,max_evals=max_evals)
@@ -145,13 +186,16 @@ class Boba_Modeling(u):
         self.write_param_search_results(search_df=search_df,grid_columns=grid_columns)
         model = xgb.XGBRegressor(**opt_params)
         eval_set = [(X_train, y_train),(X_test, y_test)]
-        model.fit(X_train,y_train, early_stopping_rounds=xgb_fit_params['early_stopping_rounds'], eval_metric= xgb_fit_params['eval_metric'], eval_set=eval_set,verbose=0)
-        results_columns = ['Date','DateTime','environment','position_group','target','algo','test_RMSE','test_R2','test_MAE','train_RMSE','train_R2','train_MAE'
-                        ,'n_trees','learning_rate','max_depth','colsample_bytree','min_child_weight','subsample'
-                        ,'seed','knn']
+        model.fit(X_train,y_train, early_stopping_rounds=xgb_fit_params['early_stopping_rounds'], eval_metric= xgb_fit_params['eval_metric'], eval_set=eval_set,verbose=verbose_setting)
+        
+        self.run_model_diagnostics(model=model, X_train=X_train, X_test=X_test, y_train=y_train, y_test=y_test, target=target)
 
-        results_df = self.create_model_results(model=model,X_train=X_train, X_test=X_test,y_train=y_train, y_test=y_test,target=target, prod=prod,results_columns=results_columns)
-        self.write_model_results(results_df=results_df,results_columns=results_columns)
+
+        evaluation_df = self.run_sys_scoring(model=model, target=target,prod=prod)
+        evaluation_results_df = self.run_sys_diagnostics(evaluation_df=evaluation_df, target=target,prod=prod)
+
+        results_df, results_cols = self.create_model_results(model=model,X_train=X_train, X_test=X_test,y_train=y_train, y_test=y_test,target=target, prod=prod, evaluation_results_df = evaluation_results_df)
+        self.write_model_results(results_df=results_df,results_cols=results_cols)
         
         if prod == True:
             env = 'prod'
@@ -159,10 +203,16 @@ class Boba_Modeling(u):
             env = 'eval'
         filename_prod = ('models/'+self.position_group+'/'+target+'_'+env+'.sav')
         pickle.dump(model, open(filename_prod, 'wb'))
-        
+
         return model
 
-    def create_model_results(self,model,X_train, X_test,y_train, y_test,target,prod,results_columns):
+
+
+    def create_model_results(self,model,X_train, X_test,y_train, y_test,target,prod, evaluation_results_df):
+        results_columns = ['Date','DateTime','environment','position_group','target','algo','Evaluation_WinShare','Evaluation_RMSE','Evaluation_R2','test_RMSE','test_R2','test_MAE','train_RMSE','train_R2','train_MAE'
+                        ,'n_trees','learning_rate','max_depth','colsample_bytree','min_child_weight','subsample'
+                        ,'seed','knn','pt_min','pt_keep_thres','pt_drop','start_year']
+
         train_pred = model.predict(X_train)
         test_pred = model.predict(X_test)
 
@@ -193,20 +243,48 @@ class Boba_Modeling(u):
         results_df['algo'] = 'xgb'
         results_df['seed'] = self.seed
         results_df['knn'] = self.knn
-        results_df= results_df[results_columns]
-        return results_df
+        results_df['pt_min'] = self.pt_min
+        results_df['pt_keep_thres'] = self.pt_keep_thres
+        results_df['pt_drop'] = self.pt_drop
+        results_df['start_year'] = self.start_year
+        
+
+        if prod == True:
+            results_df['Evaluation_WinShare'] = 0
+        else:
+            results_df['Evaluation_WinShare'] = evaluation_results_df[evaluation_results_df['system']=='BOBA']['WinShare'][0]
+        
+        rate_stats = [c+'_per_'+self.per_metric for c in self.counting_stats]
+        if target in rate_stats:
+            colname = target.replace('_per_'+self.per_metric, '')
+        else:
+            colname = target
+
+        print(colname)
+        if prod == True:
+            results_df['Evaluation_R2'] = 0
+        else:
+            results_df['Evaluation_R2'] = evaluation_results_df[evaluation_results_df['system']=='BOBA']['R2'][0]
+
+        if prod == True:
+            results_df['Evaluation_RMSE'] = 0
+        else:
+            results_df['Evaluation_RMSE'] = evaluation_results_df[evaluation_results_df['system']=='BOBA']['RMSE'][0]
+
+        results_df = results_df[results_columns]
+        return results_df, results_columns
 
 
-    def write_model_results(self,results_df,results_columns):
+    def write_model_results(self,results_df,results_cols):
         if os.path.exists('models/model_results.csv'):
             df_old = pd.read_csv('models/model_results.csv')
             df_new = pd.concat([df_old,results_df])
-            df_new = df_new[results_columns]
+            df_new = df_new[results_cols]
             df_new.to_csv('models/model_results.csv',index=False)
         else: 
-            template_df = pd.DataFrame(columns=results_columns)
+            template_df = pd.DataFrame(columns=results_cols)
             df_new = pd.concat([template_df,results_df])
-            df_new = df_new[results_columns]
+            df_new = df_new[results_cols]
             df_new.to_csv('models/model_results.csv',index=False)
 
     def create_param_search_results(self,target, trials,max_evals,xgb_reg_params,prod,grid_columns):
@@ -248,6 +326,104 @@ class Boba_Modeling(u):
             df_new = df_new[grid_columns]
             df_new.to_csv('models/grid_search_results.csv',index=False)
 
+
+    def generate_prod_predictions(self, target):
+        scoring_raw_df = pd.read_csv('data/scoring/scoring_raw_'+self.position_group+'.csv',index_col=0) 
+        path = 'data/projections/'+self.position_group+'_'+str(self.year)+'.csv'
+        if os.path.exists(path):
+                print('does exist')
+                scoring_df = pd.read_csv(path,index_col=0)
+        else:
+            data_group = 'hitters' if self.position_group == 'hitters' else 'pitchers'
+            zips_df = pd.read_csv('data/raw/'+data_group+'/projection_systems/zips/'+str(self.year)+'.csv')
+            atc_df = pd.read_csv('data/raw/'+data_group+'/projection_systems/atc/'+str(self.year)+'.csv')
+            bat_df = pd.read_csv('data/raw/'+data_group+'/projection_systems/thebat/'+str(self.year)+'.csv')
+            stmr_df = pd.read_csv('data/raw/'+data_group+'/projection_systems/steamer/'+str(self.year)+'.csv')
+            zips_df = zips_df.rename(columns={"K/9": "K_per_9", "BB/9": "BB_per_9"})
+            atc_df = atc_df.rename(columns={"K/9": "K_per_9", "BB/9": "BB_per_9"})
+            bat_df = bat_df.rename(columns={"K/9": "K_per_9", "BB/9": "BB_per_9"})
+            stmr_df = stmr_df.rename(columns={"K/9": "K_per_9", "BB/9": "BB_per_9"})
+
+            if self.position_group == 'hitters':
+                scoring_df = scoring_raw_df[self.information_cols]
+                for c in self.rate_stats:
+                    scoring_df[c] = 0
+                for c in self.counting_stats:
+                    scoring_df[c] = 0
+                zips_df = zips_df[['playerid']+[self.pt_metric]+[x for x in zips_df.columns if x in self.model_targets]+[x for x in zips_df.columns if x in self.counting_stats]]
+                atc_df = atc_df[['playerid']+[self.pt_metric]+[x for x in atc_df.columns if x in self.model_targets]+[x for x in atc_df.columns if x in self.counting_stats]]
+                bat_df = bat_df[['playerid']+[self.pt_metric]+[x for x in bat_df.columns if x in self.model_targets]+[x for x in bat_df.columns if x in self.counting_stats]]
+                stmr_df = stmr_df[['playerid']+[self.pt_metric]+[x for x in stmr_df.columns if x in self.model_targets]+[x for x in stmr_df.columns if x in self.counting_stats]]
+            else:
+                scoring_df = scoring_raw_df[self.information_cols]
+                for c in self.rate_stats:
+                    scoring_df[c] = 0
+                for c in self.counting_stats:
+                    scoring_df[c] = 0
+                zips_df = zips_df[['playerid']+[self.pt_metric]+[self.per_metric]+[x for x in zips_df.columns if x in self.model_targets]+[x for x in zips_df.columns if x in self.counting_stats]]
+                atc_df = atc_df[['playerid']+[self.pt_metric]+[self.per_metric]+[x for x in atc_df.columns if x in self.model_targets]+[x for x in atc_df.columns if x in self.counting_stats]]
+                bat_df = bat_df[['playerid']+[self.pt_metric]+[self.per_metric]+[x for x in bat_df.columns if x in self.model_targets]+[x for x in bat_df.columns if x in self.counting_stats]]
+                stmr_df = stmr_df[['playerid']+[self.pt_metric]+[self.per_metric]+[x for x in stmr_df.columns if x in self.model_targets]+[x for x in stmr_df.columns if x in self.counting_stats]]
+            
+
+            scoring_df['playerID'] = scoring_df['playerID'].astype('str')
+            scoring_df = pd.merge(scoring_df,zips_df,how='left',left_on='playerID', right_on='playerid',suffixes=('','_zips')).drop('playerid',axis=1)
+            scoring_df = pd.merge(scoring_df,atc_df,how='left',left_on='playerID', right_on='playerid',suffixes=('','_atc')).drop('playerid',axis=1)
+            scoring_df = pd.merge(scoring_df,bat_df,how='left',left_on='playerID', right_on='playerid',suffixes=('','_bat')).drop('playerid',axis=1)
+            scoring_df = pd.merge(scoring_df,stmr_df,how='left',left_on='playerID', right_on='playerid',suffixes=('','_stmr')).drop('playerid',axis=1)
+            scoring_df = scoring_df.drop(self.rate_stats,axis=1,errors='ignore')
+            scoring_df = scoring_df.drop(self.counting_stats,axis=1,errors='ignore')
+
+        temp_df = scoring_raw_df.copy()
+        temp_df = temp_df.drop(['Name_zips'],axis=1,errors='ignore')
+        temp_df = temp_df.dropna(subset = ['playerID','Name'])
+        temp_df['Season'] = (self.year-1)
+        temp_df = self.isolate_relevant_columns_scoring(modeling_df = temp_df,target = target)
+        pipeline = pickle.load(open('data/modeling/'+self.position_group+'/'+target+'/preprocessing_pipeline_prod.sav', 'rb'))
+        temp_df_2 = pipeline.transform(temp_df)
+        with open(r'data/modeling/'+self.position_group+'/'+target+'/model_features_prod.yaml') as file:
+                        yaml_data = yaml.load(file, Loader=yaml.FullLoader)
+        model_features = yaml_data[target]
+        temp_df = pd.DataFrame(temp_df_2, columns = model_features,index=temp_df.index)
+        model = pickle.load(open('models/'+self.position_group+'/'+target+'_prod.sav', 'rb'))
+        temp_df[target+'_Boba'] = model.predict(temp_df)
+        temp_df = temp_df[[target+'_Boba']]
+        scoring_df = scoring_df.drop([target+'_Boba'],axis=1,errors='ignore')
+        new_df = pd.merge(scoring_df,temp_df,left_index=True,right_index=True)
+        # new_df = temp_df.copy()
+        return scoring_raw_df, scoring_df, new_df
+
+
+
+    def isolate_relevant_columns_scoring(self, modeling_df, target):
+        with open(r'boba/recipes/'+self.position_group+'_relevant_features.yaml') as file:
+            yaml_data = yaml.load(file, Loader=yaml.FullLoader)
+        features = [col for col in list(modeling_df.columns) if col in yaml_data[target]]
+        if self.position_group == 'hitters':
+            column_list = ['Season','Team'] + features
+            model_df = modeling_df.copy()
+            model_df['Team_2yrago'] = model_df['Team_2yrago'].fillna('- - -')
+            model_df['Team_1yrago'] = model_df['Team_1yrago'].fillna('- - -')
+            model_df['Team_3yrago'] = model_df['Team_3yrago'].fillna('- - -')
+            model_df = model_df[column_list]
+        elif self.position_group == 'SP':
+            column_list = ['Season','Team','pitch_hand'] + features
+            model_df = modeling_df.copy()
+            model_df['Team_2yrago'] = model_df['Team_2yrago'].fillna('- - -')
+            model_df['Team_1yrago'] = model_df['Team_1yrago'].fillna('- - -')
+            model_df['Team_3yrago'] = model_df['Team_3yrago'].fillna('- - -')
+            model_df['ShO_3yrago'] = model_df['ShO_3yrago'].fillna(0)
+            model_df['pitch_hand'] = model_df['pitch_hand'].fillna('R')
+            model_df = model_df[column_list]
+        elif self.position_group == 'RP':
+            column_list = ['Season','Team','pitch_hand']+ features
+            model_df = modeling_df.copy()
+            model_df['Team_2yrago'] = model_df['Team_2yrago'].fillna('- - -')
+            model_df['Team_1yrago'] = model_df['Team_1yrago'].fillna('- - -')
+            model_df['ShO_3yrago'] = model_df['ShO_3yrago'].fillna(0)
+            model_df['pitch_hand'] = model_df['pitch_hand'].fillna('R')
+            model_df = model_df[column_list]
+        return model_df
 
     def xgb_reg(self,params):
         reg = xgb.XGBRegressor(**params['reg_params'])

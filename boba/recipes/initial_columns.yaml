@@ -217,8 +217,8 @@ pitchers:
     - IFH
     - BU
     - BUH
-    - K/9
-    - BB/9
+    - K_per_9
+    - BB_per_9
     - K/BB
     - H/9
     - HR/9
@@ -379,8 +379,8 @@ pitchers:
     - bacon
     - xbacon
     - babip
-    - obp
-    - slg
+    - OBP
+    - SLG
     - xobp
     - xslg
     - iso

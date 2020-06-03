@@ -16,6 +16,10 @@ class Boba_Preprocessing(u):
         master_df = pd.merge(fg_df,statcast,how='left',left_on=['playerID','Season'],right_on=['IDFANGRAPHS','year'])
         columns = ['playerID'] + [c for c in list(master_df.columns) if c not in ['playerID','IDFANGRAPHS','MLBID']]
         master_df = master_df[columns]
+        if self.position_group == 'hitters':
+            pass
+        else:
+           master_df = master_df.rename(columns={"K/9": "K_per_9", "BB/9": "BB_per_9","slg": "SLG","obp": "OBP"})
         return master_df 
 
     def preliminary_col_reduction(self,master_df):
@@ -38,11 +42,10 @@ class Boba_Preprocessing(u):
                     , 'sweet_spot_percent','hard_hit_percent','xba','xwoba','xbacon','xobp','xslg','xwobacon','wobacon']
         else: 
             sum_cols = ['IP','G','W','ShO','SV','WAR','BS','HR','SO','HLD']
-            w_avg_cols = ['ERA','K/9','BB/9','K/BB','AVG','WHIP','BABIP','LOB%','FIP','GB/FB','LD%','GB%','FB%','IFFB%','HR/FB','tERA','xFIP'
-              ,'O-Swing%','Z-Swing%','O-Contact%','Z-Contact%','Contact%','SwStr%','SIERA'
+            w_avg_cols = ['ERA','K_per_9','BB_per_9','K/BB','AVG','WHIP','BABIP','LOB%','FIP','GB/FB','LD%','GB%','FB%','IFFB%','HR/FB','tERA','xFIP'
+              ,'O-Swing%','Z-Swing%','O-Contact%','Z-Contact%','Contact%','SwStr%','SIERA', 'OBP','SLG'
               ,'whiff_percent','meatball_percent','popups_percent','solidcontact_percent','barrel_batted_rate','launch_angle_avg'
-              , 'exit_velocity_avg', 'sweet_spot_percent', 'xba', 'xbacon', 'xobp', 'xiso', 'xwoba', 'woba','xwobacon','xslg','on_base_plus_slg'
-              ,'slg_percent', 'on_base_percent']
+              , 'exit_velocity_avg', 'sweet_spot_percent', 'xba', 'xbacon', 'xobp', 'xiso', 'xwoba', 'woba','xwobacon','xslg','on_base_plus_slg']
 
         for i in tqdm(sum_cols):
             career_working = master_df.copy()
@@ -79,6 +82,8 @@ class Boba_Preprocessing(u):
         df = pd.merge(df_3yr,mlb_tenure_df,how='left', left_on=['playerID','Season'],right_on=['playerID','Season'],suffixes=['','_tenure'])
         df = pd.merge(df,career_stats_df,how='left', left_on=['playerID','Season'],right_on=['playerID','career_asof_season'],suffixes=['','_career'])
         df = df.drop(['Season_career','Name_career','pitch_hand_2yrago','pitch_hand_3yrago','pitch_hand_1yrago'],axis=1, errors='ignore')
+
+        # df['Age_sqr'] = df['Age']**2
 
         with open(r'boba/recipes/initial_columns.yaml') as file:
             yaml_data = yaml.load(file, Loader=yaml.FullLoader)
@@ -121,7 +126,7 @@ class Boba_Preprocessing(u):
         if self.position_group == 'hitters':
             model_cols = self.information_cols + self.model_targets + [self.pt_metric] + self.counting_stats + model_data_cols
         else: 
-            model_cols = self.information_cols + ['pitch_hand'] + self.model_targets + [self.pt_metric] + self.counting_stats + model_data_cols
+            model_cols = self.information_cols + ['pitch_hand'] + self.model_targets + [self.pt_metric] + [self.per_metric] + self.counting_stats + model_data_cols
         df = master_df[model_cols]
         return df
 
@@ -133,13 +138,22 @@ class Boba_Preprocessing(u):
         modeling_df = modeling_df[high_PT_general]
         return modeling_df
 
+    def remove_missing(self,modeling_df):
+        if self.position_group == 'RP':
+            modeling_df = modeling_df[~modeling_df['SLG'].isna()]
+            modeling_df = modeling_df[~modeling_df['OBP'].isna()]
+            return modeling_df
+        else:
+            return modeling_df
+
     def run_corr_analysis(self,modeling_df):
+        modeling_df = modeling_df[modeling_df['Season']<(self.year - 2)]
         test_dict = {}
         for target in self.model_targets:
             print(target)
             targets = self.model_targets.copy()
             targets.remove(target)
-            trim_df = modeling_df.drop(targets+self.counting_stats+['Season','Name','playerID','position','Team','PA','IP'],axis=1,errors='ignore')
+            trim_df = modeling_df.drop(targets+self.counting_stats+['Season','Name','playerID','position','Team','PA','IP','G','GS'],axis=1,errors='ignore')
             corr_matrix = trim_df.corr().abs()
             sort_corr = corr_matrix[[target]].sort_values(target,ascending=False)
             ordered_columns = sort_corr[sort_corr[target]>.1].index
@@ -166,9 +180,68 @@ class Boba_Preprocessing(u):
             yaml.dump(test_dict, file)
 
 
+    def create_scoring_data(self,fg_df,statcast_df,id_map,fantrax):
+        master_df = self.join_tables(fg_df,statcast_df,id_map,fantrax)
+        master_df = self.preliminary_col_reduction(master_df)
+        master_df = self.feature_engineering_scoring(master_df)
+        master_df = self.drop_out_of_position(master_df = master_df)
+        features_df =  master_df[(master_df['Season'] == self.year-1)]
+        
+        
+        data_group = 'hitters' if self.position_group == 'hitters' else 'pitchers'
+        zips = pd.read_csv('data/raw/'+data_group+'/projection_systems/zips/'+str(self.year)+'.csv')
+        zips = zips.rename(columns={'playerid':'playerID'})
+        base_df = zips[['playerID','Name']]
+
+        features_df['Season'] = self.year
+        features_df['MLB_tenure'] = features_df['MLB_tenure']+1
+        features_df['Age'] = features_df['Age']+1
+        # features_df['Age_sqr'] = features_df['Age']**2
+        features_df = features_df.reset_index()
+        score_data_cols = list(features_df.columns[features_df.columns.get_loc('Team_1yrago'):])
+        score_cols = self.information_cols + score_data_cols
+        features_df = features_df[score_cols]
+
+        scoring_df = pd.merge(base_df,features_df,how='left',left_on='playerID',right_on='playerID', suffixes=['_zips',''])
+        scoring_df.to_csv('data/scoring/scoring_raw_'+self.position_group+'.csv')
+        return scoring_df
 
 
 
+    def feature_engineering_scoring(self,master_df):
+        mlb_tenure_df = pd.DataFrame(master_df.groupby(['playerID','Season']).count().groupby('playerID').cumcount(),columns=['MLB_tenure']).reset_index()
+        career_stats_df = self.gen_career_stats(master_df)
+
+        master_df['Year-1'] = master_df['Season']-1
+        df_1yr = pd.merge(master_df,master_df,how='left',left_on=['playerID','Season'],right_on=['playerID','Season'], suffixes=['','_1yrago'])
+        df_1yr = df_1yr.drop(['Year-1_1yrago','Season_1yrago','Name_1yrago','Age_1yrago','position_1yrago'],axis=1, errors='ignore')
+        df_1yr['Year-2'] = df_1yr['Season']-2
+
+        df_2yr = pd.merge(df_1yr,master_df,how='left',left_on=['playerID','Year-1'],right_on=['playerID','Season'], suffixes=['','_2yrago'])
+        df_2yr = df_2yr.drop(['Year-1','Season_2yrago','Name_2yrago','Age_2yrago','position_2yrago'],axis=1, errors='ignore')
+        df_2yr['Year-3'] = df_2yr['Season']-3
+
+        df_3yr = pd.merge(df_2yr,master_df,how='left',left_on=['playerID','Year-2'],right_on=['playerID','Season'], suffixes=['','_3yrago'])
+        df_3yr = df_3yr.drop(['Year-2','Year-1','Season_3yrago','Name_3yrago','Age_3yrago','position_3yrago'],axis=1, errors='ignore')
+        
+        df = pd.merge(df_3yr,mlb_tenure_df,how='left', left_on=['playerID','Season'],right_on=['playerID','Season'],suffixes=['','_tenure'])
+        df = pd.merge(df,career_stats_df,how='left', left_on=['playerID','Season'],right_on=['playerID','career_asof_season'],suffixes=['','_career'])
+        df = df.drop(['Season_career','Name_career','pitch_hand_2yrago','pitch_hand_3yrago','pitch_hand_1yrago'],axis=1, errors='ignore')
+
+        with open(r'boba/recipes/initial_columns.yaml') as file:
+            yaml_data = yaml.load(file, Loader=yaml.FullLoader)
+        if self.position_group == 'hitters':
+            cols = yaml_data['hitters']['column_list']
+        else: 
+            cols = yaml_data['pitchers']['column_list']
+        col_list = [e for e in cols if e not in ['Season', 'playerID','Name','position','Team','Age','pitch_hand']]
+
+        for col in tqdm(col_list):
+            df[col+'_w3yr'] = (df[col+'_1yrago'].fillna(0)*df[self.pt_metric+'_1yrago'].fillna(0)+df[col+'_2yrago'].fillna(0)*df[self.pt_metric+'_2yrago'].fillna(0)+df[col+'_3yrago'].fillna(0)*df[self.pt_metric+'_3yrago'].fillna(0))/(df[self.pt_metric+'_1yrago'].fillna(0)+df[self.pt_metric+'_2yrago'].fillna(0)+df[self.pt_metric+'_3yrago'].fillna(0))
+            df[col+'_1yrDiff'] = df[col+'_1yrago'] - df[col+'_2yrago']
+            # df[col+'_1yrDelta'] = (df[col+'_1yrago']/df[col+'_2yrago'])-1
+
+        return df
 
 
 

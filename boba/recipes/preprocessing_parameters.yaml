@@ -1,16 +1,16 @@
 parameters:
   hitters:
     pt_min:
-      200
+      150
     pt_keep_thres:
-      400
+      300
     pt_drop:
       200
   SP:
     pt_min:
-      100
+      80
     pt_keep_thres:
-      120
+      100
     pt_drop:
       60
   RP:

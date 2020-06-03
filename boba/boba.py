@@ -2,6 +2,8 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import seaborn as sns
+
 import boto3
 from tqdm import tqdm
 import yaml
@@ -9,9 +11,9 @@ import yaml
 from ._01_ETL import Boba_ETL as etl
 from ._02_Preprocessing import Boba_Preprocessing as pp
 from ._03_Modeling import Boba_Modeling as m
-from ._04_Diagnostics import Boba_Diagnostics as d
 
-class BobaProjections(etl,pp,m,d):
+
+class BobaModeling(etl,pp,m):
 
     def __init__(self, year, position_group):
         self.s3_client = boto3.client('s3')
@@ -27,14 +29,14 @@ class BobaProjections(etl,pp,m,d):
             self.pt_metric = 'PA'      
         elif self.position_group=='SP':
             self.per_metric = 'GS' 
-            self.counting_stats = ['ShO','CG','W'] 
-            self.rate_stats = ['ERA','BB/9','K/9','obp','slg']
+            self.counting_stats = ['ShO','CG','W','WAR'] 
+            self.rate_stats = ['ERA','BB_per_9','K_per_9','OBP','SLG']
             self.model_targets = self.rate_stats + [c+'_per_'+self.per_metric for c in self.counting_stats]
             self.pt_metric = 'IP'
         elif self.position_group=='RP':
             self.per_metric = 'G' 
-            self.counting_stats = ['SV','HLD']
-            self.rate_stats = ['ERA','BB/9','K/9','obp','slg']
+            self.counting_stats = ['SV','HLD','WAR']
+            self.rate_stats = ['ERA','BB_per_9','K_per_9','OBP','SLG']
             self.model_targets = self.rate_stats + [c+'_per_'+self.per_metric for c in self.counting_stats]
             self.pt_metric = 'IP'
         else:
@@ -79,7 +81,8 @@ class BobaProjections(etl,pp,m,d):
             pass  
     
 
-    def create_master_data(self,start_year=2016):
+    def create_master_data(self,start_year=2014):
+        self.start_year = start_year
         with open(r'boba/recipes/preprocessing_parameters.yaml') as file:
             yaml_data = yaml.load(file, Loader=yaml.FullLoader)
 
@@ -98,38 +101,54 @@ class BobaProjections(etl,pp,m,d):
         master_df = master_df.reset_index(drop = True)
         master_df.to_csv('data/processed/'+self.position_group+'/master_df.csv',index=True)
         modeling_df = pp.remove_injured(self,master_df=master_df)
+        modeling_df = pp.remove_missing(self,modeling_df=modeling_df)
         modeling_df.to_csv('data/processed/'+self.position_group+'/modeling_df.csv',index=True)
         pp.run_corr_analysis(self,modeling_df)
 
         return master_df, modeling_df
 
 
-    def modeling_pipeline(self, target, seed=88,test_size=.25):
+    def modeling_pipeline(self, target, knn = 5,test_size = .3, max_evals = 100, seed = 8,verbose=False):
 
         modeling_df =  pd.read_csv('data/processed/'+self.position_group+'/modeling_df.csv',index_col=0)   
 
         self.seed = seed
-        with open(r'boba/recipes/modeling_parameters.yaml') as file:
-            yaml_data = yaml.load(file, Loader=yaml.FullLoader)
-        self.knn = yaml_data['preprocessing']['knn']
+        self.knn = knn
 
         model_df = m.isolate_relevant_columns(self,modeling_df = modeling_df,target = target)
 
-        self.X_train, self.X_test, self.y_train, self.y_test = m.evaluation_split(self,model_df=model_df,target=target)
+        self.X_train, self.X_test, self.y_train, self.y_test = m.evaluation_split(self,model_df=model_df,target=target,test_size=test_size)
         self.X_train_prod, self.X_test_prod, self.y_train_prod, self.y_test_prod = m.production_split(self,model_df=model_df,target=target,test_size=test_size)
         self.X_train, self.X_test = m.preprocessing_pipeline(self, X_train = self.X_train, X_test = self.X_test, target = target, prod=False)
-        self.model_eval = m.build_model(self,X_train=self.X_train, X_test=self.X_test,y_train=self.y_train, y_test=self.y_test,target=target,prod=False)
-        d.run_model_diagnostics(self, model=self.model_eval, X_train=self.X_train, X_test=self.X_test, y_train=self.y_train, y_test=self.y_test, target=target)
+        self.model_eval = m.build_model(self,X_train=self.X_train, X_test=self.X_test,y_train=self.y_train, y_test=self.y_test,target=target,prod=False,max_evals=max_evals,verbose=verbose)
         self.X_train_prod, self.X_test_prod = m.preprocessing_pipeline(self, X_train = self.X_train_prod, X_test = self.X_test_prod, target = target, prod=True)
-        self.model_prod = m.build_model(self,X_train=self.X_train, X_test=self.X_test,y_train=self.y_train, y_test=self.y_test,target=target,prod=True)
-        d.run_model_diagnostics(self, model=self.model_prod, X_train=self.X_train_prod, X_test=self.X_test_prod, y_train=self.y_train_prod, y_test=self.y_test_prod, target=target)
+        self.model_prod = m.build_model(self,X_train=self.X_train, X_test=self.X_test,y_train=self.y_train, y_test=self.y_test,target=target,prod=True,max_evals=max_evals,verbose=verbose)
 
+
+    def prod_scoring_pipeline(self):
+        fg_df,statcast_df,id_map,fantrax = etl.load_raw_dataframes(self)
+        scoring_df = pp.create_scoring_data(self,fg_df,statcast_df,id_map,fantrax)
+        return scoring_df
+
+
+class BobaProjections(BobaModeling):
+
+    def __init__(self, year, position_group):
+        b_H = BobaModeling(year=year,position_group='hitters')
+        b_SP = BobaModeling(year=year,position_group='SP')
+        b_RP = BobaModeling(year=year,position_group='RP')
 
     def create_league(self):
-        pass
+        print("TBD")
 
     def set_model_weights(self):
-        pass
+        print("TBD")
+
+    def generate_projections(self):
+        print("TBD")
+
+    def system_comparison(self):
+        print("TBD")
 
 
 
@@ -155,10 +174,6 @@ class BobaProjections(etl,pp,m,d):
 
     # def compare_methods():
     #     return df, plots
-
-
-
-
 
 
 
