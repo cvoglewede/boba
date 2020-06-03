@@ -65,7 +65,7 @@ class Boba_Modeling(u,d,sd):
             model_df = model_df[column_list]
         return model_df
 
-    def evaluation_split(self,model_df,target,test_size):
+    def evaluation_split(self,model_df,target,test_size, method = 'timeseries'):
         print("Split model Dataframe into pre-{} data".format((self.year-1)))
         X = model_df.drop([target],axis=1)
         y = model_df[[target]]
@@ -73,23 +73,31 @@ class Boba_Modeling(u,d,sd):
         test_split = (model_df.Season==(self.year-2))
         X = X[-year_split]
         y = y[-year_split]
-        # X_train = X[-test_split]
-        # X_test = X[test_split]
-        # y_train = y[-test_split]
-        # y_test = y[test_split]
-        X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=test_size, random_state=self.seed)
+        if method == 'timeseries':
+            self.eval_split_method = 'timeseries'
+            X_train = X[-test_split]
+            X_test = X[test_split]
+            y_train = y[-test_split]
+            y_test = y[test_split]
+        else:
+            self.eval_split_method = 'random'
+            X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=test_size, random_state=self.seed)
         return X_train, X_test, y_train, y_test
 
-    def production_split(self,model_df, target, test_size):
+    def production_split(self,model_df, target, test_size, method = 'timeseries'):
         print("Split data into true train/test")
         X = model_df.drop([target],axis=1)
         y = model_df[[target]]
         test_split = (model_df.Season==(self.year-1))
-        # X_train = X[-test_split]
-        # X_test = X[test_split]
-        # y_train = y[-test_split]
-        # y_test = y[test_split]
-        X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=test_size, random_state=self.seed)
+        if method == 'timeseries':
+            self.prod_split_method = 'timeseries'
+            X_train = X[-test_split]
+            X_test = X[test_split]
+            y_train = y[-test_split]
+            y_test = y[test_split]
+        else:
+            self.prod_split_method = 'random'
+            X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=test_size, random_state=self.seed)
         return X_train, X_test, y_train, y_test
 
     def preprocessing_pipeline(self, X_train, X_test, target, prod):
@@ -211,7 +219,7 @@ class Boba_Modeling(u,d,sd):
     def create_model_results(self,model,X_train, X_test,y_train, y_test,target,prod, evaluation_results_df):
         results_columns = ['Date','DateTime','environment','position_group','target','algo','Evaluation_WinShare','Evaluation_RMSE','Evaluation_R2','test_RMSE','test_R2','test_MAE','train_RMSE','train_R2','train_MAE'
                         ,'n_trees','learning_rate','max_depth','colsample_bytree','min_child_weight','subsample'
-                        ,'seed','knn','pt_min','pt_keep_thres','pt_drop','start_year']
+                        ,'seed','knn','pt_min','pt_keep_thres','pt_drop','start_year','eval_split_method','prod_split_method']
 
         train_pred = model.predict(X_train)
         test_pred = model.predict(X_test)
@@ -247,6 +255,8 @@ class Boba_Modeling(u,d,sd):
         results_df['pt_keep_thres'] = self.pt_keep_thres
         results_df['pt_drop'] = self.pt_drop
         results_df['start_year'] = self.start_year
+        results_df['eval_split_method'] = self.eval_split_method
+        results_df['prod_split_method'] = self.prod_split_method
         
 
         if prod == True:
@@ -329,7 +339,7 @@ class Boba_Modeling(u,d,sd):
 
     def generate_prod_predictions(self, target):
         scoring_raw_df = pd.read_csv('data/scoring/scoring_raw_'+self.position_group+'.csv',index_col=0) 
-        path = 'data/projections/'+self.position_group+'_'+str(self.year)+'.csv'
+        path = 'data/projections/'+self.position_group+'_'+str(self.year)+'_raw.csv'
         if os.path.exists(path):
                 print('does exist')
                 scoring_df = pd.read_csv(path,index_col=0)
@@ -390,7 +400,9 @@ class Boba_Modeling(u,d,sd):
         temp_df = temp_df[[target+'_Boba']]
         scoring_df = scoring_df.drop([target+'_Boba'],axis=1,errors='ignore')
         new_df = pd.merge(scoring_df,temp_df,left_index=True,right_index=True)
+        new_df.to_csv(path)
         # new_df = temp_df.copy()
+
         return scoring_raw_df, scoring_df, new_df
 
 
