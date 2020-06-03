@@ -108,7 +108,7 @@ class BobaModeling(etl,pp,m):
         return master_df, modeling_df
 
 
-    def modeling_pipeline(self, target, knn = 5,test_size = .3, max_evals = 100, seed = 8,verbose=False):
+    def modeling_pipeline(self, target, knn = 5,test_size = .3, max_evals = 100, seed = 8,verbose=False, split_method='timeseries'):
 
         modeling_df =  pd.read_csv('data/processed/'+self.position_group+'/modeling_df.csv',index_col=0)   
 
@@ -117,8 +117,8 @@ class BobaModeling(etl,pp,m):
 
         model_df = m.isolate_relevant_columns(self,modeling_df = modeling_df,target = target)
 
-        self.X_train, self.X_test, self.y_train, self.y_test = m.evaluation_split(self,model_df=model_df,target=target,test_size=test_size)
-        self.X_train_prod, self.X_test_prod, self.y_train_prod, self.y_test_prod = m.production_split(self,model_df=model_df,target=target,test_size=test_size)
+        self.X_train, self.X_test, self.y_train, self.y_test = m.evaluation_split(self,model_df=model_df,target=target,test_size=test_size,method=split_method)
+        self.X_train_prod, self.X_test_prod, self.y_train_prod, self.y_test_prod = m.production_split(self,model_df=model_df,target=target,test_size=test_size,method=split_method)
         self.X_train, self.X_test = m.preprocessing_pipeline(self, X_train = self.X_train, X_test = self.X_test, target = target, prod=False)
         self.model_eval = m.build_model(self,X_train=self.X_train, X_test=self.X_test,y_train=self.y_train, y_test=self.y_test,target=target,prod=False,max_evals=max_evals,verbose=verbose)
         self.X_train_prod, self.X_test_prod = m.preprocessing_pipeline(self, X_train = self.X_train_prod, X_test = self.X_test_prod, target = target, prod=True)
