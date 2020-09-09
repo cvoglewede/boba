@@ -64,9 +64,17 @@ class Boba_Utils():
 
     
     def agg_position_p(row):
-        if (row['GS']>5) & ((row['SV']+row['HLD']) < 2) :
+        if (row['GS']>5) & ((row['SV']+row['HLD']) < 5) :
             return 'SP'
         elif row['IP']>15:
             return 'RP' 
         else:
             return 'NonP'
+
+    def agg_position_p_scoring(row):
+        if (row['Name']=='Chad Green'):
+            return 'RP'
+        elif (row['GS']>3) :
+            return 'SP'
+        else:
+            return 'RP'
