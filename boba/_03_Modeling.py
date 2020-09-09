@@ -170,7 +170,7 @@ class Boba_Modeling(u,d,sd):
             'learning_rate':    hp.uniform('learning_rate', 0, .8),
             'max_depth':        hp.choice('max_depth',        np.arange(1, 15, 1, dtype=int)),
             'min_child_weight': hp.choice('min_child_weight', np.arange(1, 8, 1, dtype=int)),
-            'colsample_bytree': hp.uniform('colsample_bytree', .6, 1),
+            'colsample_bytree': hp.uniform('colsample_bytree', .4, 1),
             'subsample':        hp.uniform('subsample', .7, 1),
             'n_estimators':     hp.choice('n_estimators', np.arange(50, 1000, 50, dtype=int))
         }
@@ -341,8 +341,7 @@ class Boba_Modeling(u,d,sd):
         scoring_raw_df = pd.read_csv('data/scoring/scoring_raw_'+self.position_group+'.csv',index_col=0) 
         path = 'data/projections/'+self.position_group+'_'+str(self.year)+'_raw.csv'
         if os.path.exists(path):
-                print('does exist')
-                scoring_df = pd.read_csv(path,index_col=0)
+            scoring_df = pd.read_csv(path,index_col=0)
         else:
             data_group = 'hitters' if self.position_group == 'hitters' else 'pitchers'
             zips_df = pd.read_csv('data/raw/'+data_group+'/projection_systems/zips/'+str(self.year)+'.csv')
@@ -355,21 +354,24 @@ class Boba_Modeling(u,d,sd):
             stmr_df = stmr_df.rename(columns={"K/9": "K_per_9", "BB/9": "BB_per_9"})
 
             if self.position_group == 'hitters':
-                scoring_df = scoring_raw_df[self.information_cols]
+                scoring_df = scoring_raw_df[self.information_cols+['Name_zips']]
                 for c in self.rate_stats:
                     scoring_df[c] = 0
                 for c in self.counting_stats:
                     scoring_df[c] = 0
+                scoring_df[self.per_metric] = 0
                 zips_df = zips_df[['playerid']+[self.pt_metric]+[x for x in zips_df.columns if x in self.model_targets]+[x for x in zips_df.columns if x in self.counting_stats]]
                 atc_df = atc_df[['playerid']+[self.pt_metric]+[x for x in atc_df.columns if x in self.model_targets]+[x for x in atc_df.columns if x in self.counting_stats]]
                 bat_df = bat_df[['playerid']+[self.pt_metric]+[x for x in bat_df.columns if x in self.model_targets]+[x for x in bat_df.columns if x in self.counting_stats]]
                 stmr_df = stmr_df[['playerid']+[self.pt_metric]+[x for x in stmr_df.columns if x in self.model_targets]+[x for x in stmr_df.columns if x in self.counting_stats]]
             else:
-                scoring_df = scoring_raw_df[self.information_cols]
+                scoring_df = scoring_raw_df[self.information_cols+['Name_zips']]
                 for c in self.rate_stats:
                     scoring_df[c] = 0
                 for c in self.counting_stats:
                     scoring_df[c] = 0
+                scoring_df[self.per_metric] = 0
+                scoring_df[self.pt_metric] = 0
                 zips_df = zips_df[['playerid']+[self.pt_metric]+[self.per_metric]+[x for x in zips_df.columns if x in self.model_targets]+[x for x in zips_df.columns if x in self.counting_stats]]
                 atc_df = atc_df[['playerid']+[self.pt_metric]+[self.per_metric]+[x for x in atc_df.columns if x in self.model_targets]+[x for x in atc_df.columns if x in self.counting_stats]]
                 bat_df = bat_df[['playerid']+[self.pt_metric]+[self.per_metric]+[x for x in bat_df.columns if x in self.model_targets]+[x for x in bat_df.columns if x in self.counting_stats]]
@@ -383,9 +385,11 @@ class Boba_Modeling(u,d,sd):
             scoring_df = pd.merge(scoring_df,stmr_df,how='left',left_on='playerID', right_on='playerid',suffixes=('','_stmr')).drop('playerid',axis=1)
             scoring_df = scoring_df.drop(self.rate_stats,axis=1,errors='ignore')
             scoring_df = scoring_df.drop(self.counting_stats,axis=1,errors='ignore')
+            scoring_df = scoring_df.drop([self.per_metric],axis=1,errors='ignore')
+            scoring_df = scoring_df.drop([self.pt_metric],axis=1,errors='ignore')
 
         temp_df = scoring_raw_df.copy()
-        temp_df = temp_df.drop(['Name_zips'],axis=1,errors='ignore')
+        # temp_df = temp_df.drop(['Name_zips'],axis=1,errors='ignore')
         temp_df = temp_df.dropna(subset = ['playerID','Name'])
         temp_df['Season'] = (self.year-1)
         temp_df = self.isolate_relevant_columns_scoring(modeling_df = temp_df,target = target)
@@ -399,12 +403,27 @@ class Boba_Modeling(u,d,sd):
         temp_df[target+'_Boba'] = model.predict(temp_df)
         temp_df = temp_df[[target+'_Boba']]
         scoring_df = scoring_df.drop([target+'_Boba'],axis=1,errors='ignore')
-        new_df = pd.merge(scoring_df,temp_df,left_index=True,right_index=True)
+        new_df = pd.merge(scoring_df,temp_df,left_index=True,right_index=True,how='left')
+
+        count_stats = [c+'_per_'+self.per_metric for c in self.counting_stats]
+        if target in count_stats:
+            colname = target.replace('_per_'+self.per_metric, '')
+            new_df[colname+'_Boba'] = new_df[target+'_Boba']*new_df[self.per_metric+'_zips']
+        else:
+            colname = target
+        zips_metric = colname+'_zips'
+        atc_metric = colname+'_atc'
+        bat_metric = colname+'_bat'
+        stmr_metric = colname+'_stmr'
+        BOBA_metric = colname+'_Boba'
+        systems_list = [c for c in [BOBA_metric,zips_metric,stmr_metric,bat_metric,atc_metric] if c in list(new_df.columns)]
+        new_df[colname+'_averaged'] = new_df[systems_list].mean(axis=1)
+        new_df['Name'] = new_df['Name'].combine_first(new_df['Name_zips'])
+        # new_df['Name'] = new_df['Name'].fillna(new_df['Name_zips'])
+        new_df['Season'] = self.year
+        # new_df = new_df.drop(['Name_zips'],axis=1)
         new_df.to_csv(path)
-        # new_df = temp_df.copy()
-
-        return scoring_raw_df, scoring_df, new_df
-
+        return new_df
 
 
     def isolate_relevant_columns_scoring(self, modeling_df, target):
@@ -433,9 +452,12 @@ class Boba_Modeling(u,d,sd):
             model_df['Team_2yrago'] = model_df['Team_2yrago'].fillna('- - -')
             model_df['Team_1yrago'] = model_df['Team_1yrago'].fillna('- - -')
             model_df['ShO_3yrago'] = model_df['ShO_3yrago'].fillna(0)
-            model_df['pitch_hand'] = model_df['pitch_hand'].fillna('R')
+            # model_df['pitch_hand'] = model_df['pitch_hand'].fillna('R')
             model_df = model_df[column_list]
         return model_df
+
+    # def removed_injured_and_optouts(self,list, df):
+    #     for i in 
 
     def xgb_reg(self,params):
         reg = xgb.XGBRegressor(**params['reg_params'])
