@@ -21,12 +21,6 @@ class Boba_Sys_Diagnostics():
     def run_sys_scoring(self, model, target,prod):
         if prod == True:
             pass
-        elif (self.position_group == 'hitters' and target in ['BABIP','BB%','K%']):
-            pass
-        elif (self.position_group == 'SP' and target in ['OBP','SLG','ShO_per_GS','CG_per_GS']):
-            pass
-        elif (self.position_group == 'RP' and target in ['OBP','SLG','HLD_per_G']):
-            pass
         else:
             master_df = pd.read_csv('data/processed/'+self.position_group+'/master_df.csv',index_col=0)  
 
@@ -102,22 +96,9 @@ class Boba_Sys_Diagnostics():
             colname = target.replace('_per_'+self.per_metric, '')
         else:
             colname = target
-
         if prod == True:
             share_df = pd.DataFrame(columns = ['winning_sys'],index=['Boba','Zips','ATC','STMR','BAT','averaged']).fillna(0)
-            return share_df  
-        elif (self.position_group == 'hitters' and target in ['BABIP','BB%','K%']):
-            data = {'system':  ['BOBA', 'zips','steamer','atc','bat','averaged']}
-            compare_df = pd.DataFrame(data,columns = ['system','WinShare','R2','Corr','RMSE','MAE']).fillna(0)
-            return compare_df  
-        elif (self.position_group == 'SP' and target in ['OBP','SLG','ShO_per_GS','CG_per_GS']):
-            data = {'system':  ['BOBA', 'zips','steamer','atc','bat','averaged']}
-            compare_df = pd.DataFrame(data,columns = ['system','WinShare','R2','Corr','RMSE','MAE']).fillna(0)
-            return compare_df  
-        elif (self.position_group == 'RP' and target in ['OBP','SLG','HLD_per_G']):
-            data = {'system':  ['BOBA', 'zips','steamer','atc','bat','averaged']}
-            compare_df = pd.DataFrame(data,columns = ['system','WinShare','R2','Corr','RMSE','MAE']).fillna(0)
-            return compare_df   
+            return share_df    
         else:
             zips_metric = colname+'_zips'
             atc_metric = colname+'_atc'
@@ -147,7 +128,7 @@ class Boba_Sys_Diagnostics():
             share_df = remove_na_df.groupby('winning_sys')['winning_sys'].count().sort_values(ascending=False)
 
             sns.set(style="darkgrid")
-            pva = eval_results_df.groupby(pd.qcut(eval_results_df[averaged_metric], 10,duplicates='drop'))[systems_list].mean()
+            pva = eval_results_df.groupby(pd.qcut(eval_results_df[averaged_metric], 10))[systems_list].mean()
             pva.index =  list(np.arange(1,11,1))
             pva = pva.reset_index()
             df = pva.melt('index', var_name='cols',  value_name='vals')

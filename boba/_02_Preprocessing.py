@@ -143,10 +143,6 @@ class Boba_Preprocessing(u):
             modeling_df = modeling_df[~modeling_df['SLG'].isna()]
             modeling_df = modeling_df[~modeling_df['OBP'].isna()]
             return modeling_df
-        elif self.position_group == 'SP':
-            modeling_df = modeling_df[~modeling_df['SLG'].isna()]
-            modeling_df = modeling_df[~modeling_df['OBP'].isna()]
-            return modeling_df
         else:
             return modeling_df
 
@@ -195,11 +191,7 @@ class Boba_Preprocessing(u):
         data_group = 'hitters' if self.position_group == 'hitters' else 'pitchers'
         zips = pd.read_csv('data/raw/'+data_group+'/projection_systems/zips/'+str(self.year)+'.csv')
         zips = zips.rename(columns={'playerid':'playerID'})
-        if self.position_group == 'hitters':
-            base_df = zips[['playerID','Name']]
-        else: 
-            base_df = zips[['playerID','Name','GS']]
-
+        base_df = zips[['playerID','Name']]
 
         features_df['Season'] = self.year
         features_df['MLB_tenure'] = features_df['MLB_tenure']+1
@@ -207,25 +199,13 @@ class Boba_Preprocessing(u):
         # features_df['Age_sqr'] = features_df['Age']**2
         features_df = features_df.reset_index()
         score_data_cols = list(features_df.columns[features_df.columns.get_loc('Team_1yrago'):])
-
-        if self.position_group == 'hitters':
-            score_cols = self.information_cols + score_data_cols
-        else: 
-            score_cols = self.information_cols + ['pitch_hand'] + score_data_cols
-
-        # score_cols = self.information_cols + score_data_cols
+        score_cols = self.information_cols + score_data_cols
         features_df = features_df[score_cols]
 
         scoring_df = pd.merge(base_df,features_df,how='left',left_on='playerID',right_on='playerID', suffixes=['_zips',''])
-                
-        if self.position_group=='hitters':
-            pass
-        else: 
-            scoring_df['position'] = scoring_df.apply(u.agg_position_p_scoring, axis=1)
-            scoring_df = self.drop_out_of_position(master_df = scoring_df)
-        scoring_df = scoring_df.reset_index(drop=True)
-        scoring_df = scoring_df.drop(['GS'],axis=1,errors='ignore')
         scoring_df.to_csv('data/scoring/scoring_raw_'+self.position_group+'.csv')
+        return scoring_df
+
 
 
     def feature_engineering_scoring(self,master_df):

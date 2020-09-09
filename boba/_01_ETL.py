@@ -21,29 +21,7 @@ class Boba_ETL(u):
 
     def __init__(self):
         pass
-
-
-    def load_ID_map(self):
-        id_map_1 = pd.read_csv('data/utils/base_id_map.csv')
-        id_map_2 = pd.read_csv('data/utils/id_map_update.csv')
-        col_1 = ['MLBID','PLAYERNAME','BIRTHDATE','BATS','THROWS','IDFANGRAPHS','RETROID','BREFID','ESPNID','YAHOOID','FANTRAXNAME']
-        col_2 = ['mlb_id','mlb_name','bats','throws','fg_id','bref_id','espn_id','retro_id','yahoo_id']
-        id_map_1 = id_map_1[col_1]
-        id_map_2 = id_map_2[col_2]
-        id_map_2 = id_map_2.rename(columns = {'mlb_id':'MLBID', 
-                                            'mlb_name': 'PLAYERNAME',
-                                            'bats':'BATS',
-                                            'throws':'THROWS',
-                                            'fg_id':'IDFANGRAPHS',
-                                            'bref_id':'BREFID',
-                                            'espn_id':'ESPNID',
-                                            'retro_id':'RETROID',
-                                            'yahoo_id':'YAHOOID'
-                                            })
-        id_map = pd.concat([id_map_1,id_map_2])
-        id_map = id_map.drop_duplicates(subset=['MLBID'])
-        id_map = id_map[['IDFANGRAPHS','MLBID','FANTRAXNAME']]
-        return id_map
+        
     
     def load_raw_dataframes(self):
         data_group = 'hitters' if self.position_group == 'hitters' else 'pitchers'
